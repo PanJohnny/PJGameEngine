@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PJGE #{com.panjohnny.pjge.PJGE.VERSION}</title>
+</head>
+
+<body>
+    <header>
+        <div class="top-menu">
+            <em jhtml:src="com.panjohnny.pjge.app.FileMenu" name="File" items="Refresh, Exit" />
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="objects-view">
+                <h3>Objects</h3>
+                <div id="objects"></div>
+            </div>
+            <div class="inspector-view">
+                <h3>Inspector</h3>
+                <h4 id="objectName"></h4>
+                <span id="objectNameFull" class="small"></span>
+                <div id="components"></div>
+            </div>
+        </div>
+
+        <div class="console-view">
+            <h3>Console</h3>
+            <div id="console" class="small">
+
+            </div>
+        </div>
+    </main>
+
+    <dialog id="reconnect">
+        <h2>Unable to connect to debugger</h2>
+        <p>Attempting to reconnect, please do not refresh the page...</p>
+        <p class="small">This modal will close as soon as connection will be established</p>
+    </dialog>
+</body>
+
+</html>
+
+<style>
+    html {
+        background-color: #212125;
+        color: whitesmoke;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .top-menu {
+        display: flex;
+        flex-direction: row;
+        background-color: #2b2b30;
+    }
+
+    .menu {
+        cursor: pointer;
+        background-color: #2b2b30;
+        padding: .5em;
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid #3b3b42;
+    }
+
+    .menu>ul {
+        position: absolute;
+        list-style: none;
+        z-index: 2;
+        background: inherit;
+        padding: inherit;
+        margin-left: -.5em;
+        top: 1.5em;
+    }
+
+    .menu>ul>li {
+        padding: .2em;
+        border-bottom: 1px solid #3b3b42;
+    }
+
+    li>a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    [hidden] {
+        display: none !important;
+    }
+
+    .small {
+        font-size: small;
+    }
+
+    .console-view {
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        padding: 1em;
+        width: 100%;
+        background-color: #2d2d31;
+        border-top: 1px solid white;
+    }
+
+    h3 {
+        margin-top: 0px;
+    }
+
+    #console {
+        display: block;
+        background-color: black;
+        height: 20vh;
+        overflow-y: scroll;
+    }
+
+    .objects-view {
+        width: 50%;
+        padding: 1em;
+        padding-right: 0px;
+    }
+
+    #objects {
+        display: flex;
+        flex-direction: column;
+    }
+
+    #objects>a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .inspector-view {
+        width: 50%;
+        padding: 1em;
+        margin-left: 4px;
+    }
+
+    .container {
+        display: flex;
+        flex-direction: row;
+        margin-top: .2em;
+        justify-content: space-between;
+        height: 64vh;
+        overflow-y: scroll;
+        overflow-wrap: break-word;
+    }
+
+    h5 {
+        margin: 0px;
+    }
+
+    .component {
+        margin: .2em;
+        border-top: 1px solid white;
+    }
+
+    #objectName {
+        margin-bottom: 0px;
+    }
+</style>
+
+<script type="module">
+    import { AnsiUp } from '/lib/ansi_up/ansi_up.js'
+    const ansi_up = new AnsiUp();
+
+    document.ansi_up = ansi_up;
+</script>
+
+<script>
+    document.querySelectorAll(".menu").forEach(m => {
+        m.addEventListener("mouseover", () => {
+            m.querySelector("ul").hidden = false;
+        })
+
+        m.addEventListener("mouseout", () => {
+            m.querySelector("ul").hidden = true;
+        })
+    });
+
+
+    const menuItems = {
+        "refresh": () => location.reload(),
+        "exit": () => { },
+    }
+
+    function executeItem(id) {
+        menuItems[id]();
+    }
+
+    let websocket;
+
+    class Command {
+        constructor(command) {
+            this.raw = command;
+            this.cacheUpdated = false;
+            this.saved = null;
+        }
+
+        execute(args) {
+            if (args) {
+                executeCommand(this.raw + " " + args.concat(" "), this);
+            }
+            executeCommand(this.raw, this);
+            return new Promise(async (resolve) => {
+                async function waiting() {
+                    await delay(100);
+                    if (!getObjects.wasCacheUpdated()) {
+                        waiting();
+                    }
+                }
+
+                if (!getObjects.wasCacheUpdated()) {
+                    await waiting();
+                }
+
+                getObjects.wasCacheUpdated(false);
+                resolve(getObjects.getCache());
+            })
+        }
+
+        cache(str) {
+            this.saved = str;
+            this.cacheUpdated = true;
+        }
+
+        wasCacheUpdated(val) {
+            if (val !== undefined)
+                this.cacheUpdated = val;
+            return this.cacheUpdated;
+        }
+
+        getCache() {
+            return this.saved;
+        }
+    }
+    const getObjects = new Command("PJGL.OBJECTS");
+
+    let commandQueue = [];
+
+    setupWS();
+
+    let consoleString = "";
+
+    function setupWS() {
+        websocket = new WebSocket("ws://localhost:1235");
+        websocket.addEventListener("message", e => {
+            if (e.data.startsWith("ERR")) {
+                alert(e.data.substring(e.data.indexOf(" ")).trim())
+            } else if (e.data.startsWith("RTR")) {
+                commandQueue[0].cache(e.data.substring(e.data.indexOf(" ")).trim());
+                commandQueue = commandQueue.slice(1);
+            } else if (e.data.startsWith("CONSOLE.APPEND")) {
+                consoleString += e.data.split("CONSOLE.APPEND ")[1];
+                const cons = document.querySelector("#console");
+                cons.innerHTML = document.ansi_up.ansi_to_html(consoleString).replaceAll("\n", "<br>");
+                cons.scrollTop = cons.scrollHeight;
+            }
+        });
+
+        websocket.addEventListener("open", () => {
+            const modal = document.querySelector("#reconnect");
+            modal.close();
+        });
+
+        websocket.addEventListener("close", () => {
+            const modal = document.querySelector("#reconnect");
+            modal.showModal();
+
+            setTimeout(setupWS, 2000);
+        });
+    }
+
+    function executeCommand(cmd, obj) {
+        if (websocket.readyState != WebSocket.OPEN)
+            return;
+        if (obj)
+            commandQueue.push(obj);
+        websocket.send(cmd);
+    }
+
+    function delay(time) {
+        return new Promise(resolve => setTimeout(resolve, time));
+    }
+
+    async function loadObjects() {
+        const objects = await getObjects.execute().then(d => JSON.parse(d));
+        if (!objects)
+            return;
+        const el = document.querySelector("#objects");
+
+        const hashes = objects.map(o => o.hash);
+        // remove all elements which are not there
+        document.querySelectorAll("#objects > a").forEach(el => {
+            if (!hashes.includes(parseInt(el.href.substring(el.href.indexOf("#") + 1)))) {
+                el.remove();
+            }
+        })
+
+        // add new
+        objects.forEach(o => {
+            if (document.querySelector("a[href=\"#" + o.hash + "\"]"))
+                return;
+            const a = document.createElement("a");
+            a.innerText = o.class.substring(o.class.lastIndexOf(".") + 1);
+            a.href = "#" + o.hash;
+            el.appendChild(a);
+        });
+        return objects;
+    }
+
+    async function update() {
+        const objects = await loadObjects();
+        if (!objects)
+            return;
+
+        if (window.location.hash) {
+            const hash = parseInt(window.location.hash.substring(1));
+            const filtered = objects.filter(t => t.hash == hash);
+            if (filtered.length > 0) {
+                const obj = filtered[0];
+                if (document.querySelector("#objectName").getAttribute("data-hash") == obj.hash) {
+                    // Generate check
+                    let check = "";
+                    obj.components.forEach(c => {
+                        Object.keys(c.parameters).forEach(k => {
+                            let param = c.parameters[k];
+                            if (param instanceof Object)
+                                param = JSON.stringify(param);
+                            check += k + "=" + param + ";"
+                        })
+                    });
+
+                    if (document.querySelector("#objectName").getAttribute("data-check") == check) {
+                        return;
+                    } else {
+                        document.querySelector("#objectName").setAttribute("data-check", "")
+                    }
+                }
+                document.querySelector("#objectName").innerText = obj.class.substring(obj.class.lastIndexOf(".") + 1);
+                document.querySelector("#objectName").setAttribute("data-hash", obj.hash);
+                document.querySelector("#objectNameFull").innerText = obj.class;
+
+                document.querySelector("#components").innerHTML = "";
+
+                let check = "";
+                obj.components.forEach(c => {
+                    Object.keys(c.parameters).forEach(k => {
+                        let param = c.parameters[k];
+                        if (param instanceof Object)
+                            param = JSON.stringify(param);
+                        check += k + "=" + param + ";"
+                    })
+                });
+
+                document.querySelector("#objectName").setAttribute("data-check", check);
+
+                obj.components.forEach(c => {
+                    const div = document.createElement("div");
+                    div.classList.add("component");
+
+                    const h5 = document.createElement("h5");
+                    const span = document.createElement("span");
+
+                    div.appendChild(h5);
+                    h5.innerText = c.class.substring(c.class.lastIndexOf(".") + 1);
+
+                    div.appendChild(span);
+                    span.innerText = c.class;
+                    span.classList.add("small");
+
+                    Object.keys(c.parameters).forEach(k => {
+                        const p = c.parameters[k];
+                        const wrapper = document.createElement("div");
+                        wrapper.innerText = k + ": ";
+
+                        const input = document.createElement("input");
+
+                        // test for types
+                        const number = parseFloat(p);
+                        const bool = p === true || p === false;
+                        const isObject = p instanceof Object;
+
+                        input.onchange = () => {
+                            executeCommand("PJGL.UPDATE_OBJECT " + obj.hash + " " + c.class + " " + k + " " + input.value);
+                        };
+
+                        if (bool) {
+                            input.type = "checkbox";
+                            if (p) {
+                                input.checked = true;
+                            }
+                            input.onchange = () => {
+                                executeCommand("PJGL.UPDATE_OBJECT " + obj.hash + " " + c.class + " " + k + " " + input.value);
+                            };
+                        } else if (isObject) {
+                            const keys = Object.keys(p);
+                            if (keys.length == 1) {
+                                wrapper.innerText = k + "." + keys[0] + ": ";
+                                input.type = "text";
+                                input.value = p[keys[0]];
+                            }
+                        } else if (number != NaN) {
+                            input.type = "number";
+                            input.value = p;
+                        } else {
+                            input.type = "text";
+                            input.value = p;
+                        }
+
+                        wrapper.appendChild(input);
+                        div.appendChild(wrapper);
+                    });
+
+                    document.querySelector("#components").appendChild(div);
+                });
+            }
+        }
+    }
+
+    const upd_int = localStorage.getItem("update_interval");
+
+    setInterval(update, parseInt(upd_int ? upd_int : 100));
+</script>
