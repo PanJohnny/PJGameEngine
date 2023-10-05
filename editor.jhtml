@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PJGE Editor #{com.panjohnny.pjge.PJGE.VERSION}</title>
+</head>
+
+<body>
+    <header>
+        <div class="top-menu">
+            <em jhtml:src="com.panjohnny.pjge.app.FileMenu" name="File" items="Save, Refresh, Exit" />
+        </div>
+    </header>
+
+    <main>
+        <div id="editor" contenteditable>
+        </div>
+    </main>
+</body>
+
+</html>
+
+<style>
+    @import url("/lib/shared.css");
+
+    #editor {
+        background-color: #161616;
+        margin: 1em;
+        height: 90vh;
+        outline: none;
+        border: 1px solid #2B2B30;
+        padding: .5em;
+    }
+</style>
+
+<script>
+    document.querySelectorAll(".menu").forEach(m => {
+        m.addEventListener("mouseover", () => {
+            m.querySelector("ul").hidden = false;
+        })
+
+        m.addEventListener("mouseout", () => {
+            m.querySelector("ul").hidden = true;
+        })
+    });
+
+
+    const menuItems = {
+        "refresh": () => location.reload(),
+        "exit": () => {
+            executeCommand("SYSTEM.EXIT", null);
+            location.href = "about://blank";
+        },
+        "save": () => {
+
+        }
+    }
+
+    function executeItem(id) {
+        menuItems[id]();
+    }
+
+    const editor = document.querySelector("#editor");
+    document.addEventListener("keydown", (e) => {
+        if (e.key == "Tab") {
+            e.preventDefault();
+        }
+    });
+
+    editor.addEventListener("keydown", (e) => {
+        if (e.keyCode == 13) {
+            document.execCommand('insertText', false, '\n');
+            e.preventDefault();
+        }
+    });
+
+    editor.addEventListener("keyup", (e) => {
+        if (e.altKey || e.metaKey || e.ctrlKey)
+            return;
+
+        const sel = window.getSelection();
+        const node = sel.focusNode;
+        const offset = sel.focusOffset;
+        const pos = getCursorPosition(editor, node, offset, { pos: 0, done: false });
+        if (offset === 0) pos.pos += 0.5;
+        
+        console.log(pos);
+
+        let text = editor.innerText;
+
+        let builder = "";
+        text.split(/[\n ]/gm).forEach(w => {
+            let found = false;
+            Object.keys(colors).forEach(c => {
+                if (colors[c].includes(w.trim())) {
+                    found = true;
+                    builder += '<span style="color: ' + c + '">' + w + '</span> '
+                }
+            });
+
+            if (!found) {
+                builder += w;
+                builder += " ";
+            }
+        });
+
+        builder = builder.replace(/\t/gm, "&#9;").replace(/\n/gm, "<br>");
+        editor.innerHTML = builder.substring(0, builder.length - 1);
+
+        sel.removeAllRanges();
+        const range = setCursorPosition(editor, document.createRange(), {
+            pos: pos.pos,
+            done: false,
+        });
+        range.collapse(true);
+        sel.addRange(range);
+    });
+
+    const colors = {
+        "orange": [
+            "@author",
+            "@class",
+            "@package"
+        ]
+    }
+
+    // get the cursor position from editor start
+    function getCursorPosition(parent, node, offset, stat) {
+        if (stat.done) return stat;
+
+        let currentNode = null;
+        if (parent.childNodes.length == 0) {
+            stat.pos += parent.textContent.length;
+        } else {
+            for (let i = 0; i < parent.childNodes.length && !stat.done; i++) {
+                currentNode = parent.childNodes[i];
+                if (currentNode === node) {
+                    stat.pos += offset;
+                    stat.done = true;
+                    return stat;
+                } else getCursorPosition(currentNode, node, offset, stat);
+            }
+        }
+        return stat;
+    }
+
+    //find the child node and relative position and set it on range
+    function setCursorPosition(parent, range, stat) {
+        if (stat.done) return range;
+
+        if (parent.childNodes.length == 0) {
+            if (parent.textContent.length >= stat.pos) {
+                range.setStart(parent, stat.pos);
+                stat.done = true;
+            } else {
+                stat.pos = stat.pos - parent.textContent.length;
+            }
+        } else {
+            for (let i = 0; i < parent.childNodes.length && !stat.done; i++) {
+                currentNode = parent.childNodes[i];
+                setCursorPosition(currentNode, range, stat);
+            }
+        }
+        return range;
+    }
+</script>

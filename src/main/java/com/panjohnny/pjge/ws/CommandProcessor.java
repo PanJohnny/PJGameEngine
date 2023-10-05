@@ -17,9 +17,14 @@ import java.util.function.Function;
 
 public final class CommandProcessor {
     public static final List<Command> COMMANDS = new ArrayList<>();
+    private static final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).registerTypeAdapter(GameObject.class, new GameObjectSerializer()).registerTypeAdapter(Component.class, new ComponentSerializer()).create();
 
-    static {
-        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).registerTypeAdapter(GameObject.class, new GameObjectSerializer()).registerTypeAdapter(Component.class, new ComponentSerializer()).create();
+    public static String process(String command) {
+        Optional<Command> o = COMMANDS.stream().filter(c -> c.matches(command)).findFirst();
+        return o.map(value -> value.execute.apply(command.contains(" ") ? command.split(" ") : null)).orElse("ERR NOT_FOUND");
+    }
+
+    public static void registerDebuggerCommands() {
         COMMANDS.add(new Command("PJGL.OBJECTS", (ignored) -> {
             JsonArray array = new JsonArray();
             for (GameObject obj : PJGL.getInstance().getManager().getObjects()) {
@@ -80,11 +85,21 @@ public final class CommandProcessor {
             }
             return "ERR FAILED";
         }));
+
+        registerCommonCommands();
     }
 
-    public static String process(String command) {
-        Optional<Command> o = COMMANDS.stream().filter(c -> c.matches(command)).findFirst();
-        return o.map(value -> value.execute.apply(command.contains(" ") ? command.split(" ") : null)).orElse("ERR NOT_FOUND");
+    public static void registerCreatorCommands() {
+        COMMANDS.add(new Command("SYSTEM.EXIT", (ignored) -> {
+            System.exit(0);
+
+            return "0";
+        }));
+
+        registerCommonCommands();
+    }
+
+    private static void registerCommonCommands() {
     }
 
     public record Command(String matchString, Function<String[], String> execute) {

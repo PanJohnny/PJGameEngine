@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PJGE #{com.panjohnny.pjge.PJGE.VERSION}</title>
+    <title>PJGE Debugger #{com.panjohnny.pjge.PJGE.VERSION}</title>
 </head>
 
 <body>
@@ -46,54 +46,7 @@
 </html>
 
 <style>
-    html {
-        background-color: #212125;
-        color: whitesmoke;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .top-menu {
-        display: flex;
-        flex-direction: row;
-        background-color: #2b2b30;
-    }
-
-    .menu {
-        cursor: pointer;
-        background-color: #2b2b30;
-        padding: .5em;
-        display: flex;
-        flex-direction: column;
-        border-right: 1px solid #3b3b42;
-    }
-
-    .menu>ul {
-        position: absolute;
-        list-style: none;
-        z-index: 2;
-        background: inherit;
-        padding: inherit;
-        margin-left: -.5em;
-        top: 1.5em;
-    }
-
-    .menu>ul>li {
-        padding: .2em;
-        border-bottom: 1px solid #3b3b42;
-    }
-
-    li>a {
-        color: inherit;
-        text-decoration: none;
-    }
-
-    [hidden] {
-        display: none !important;
-    }
-
-    .small {
-        font-size: small;
-    }
+    @import url("/lib/shared.css");
 
     .console-view {
         position: fixed;
@@ -183,7 +136,10 @@
 
     const menuItems = {
         "refresh": () => location.reload(),
-        "exit": () => { },
+        "exit": () => {
+            executeCommand("SYSTEM.EXIT", null);
+            location.href = "about://blank";
+        },
     }
 
     function executeItem(id) {

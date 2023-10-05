@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PJGE #{com.panjohnny.pjge.PJGE.VERSION}</title>
+</head>
+
+<body>
+    <main>
+        <h1>Welcome to PJGE</h1>
+        <p>Running on <b>#{com.panjohnny.pjge.PJGE.getMode()}</b> mode</p>
+        <ul>
+            <li>
+                <a href="/debugger">
+                    Debugger (Debugger mode)
+                </a>
+            </li>
+            <li>
+                <a href="/app">
+                    App (Creator mode)
+                </a>
+            </li>
+        </ul>
+    </main>
+</body>
+
+</html>
+
+<style>
+    @import url("/lib/shared.css");
+</style>

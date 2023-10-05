@@ -1,5 +1,6 @@
 package com.panjohnny.pjge;
 
+import com.panjohnny.pjge.ws.CommandProcessor;
 import com.panjohnny.pjge.ws.Communicator;
 import com.panjohnny.pjgl.api.PJGLEvents;
 import com.panjohnny.quickhttp.Router;
@@ -12,7 +13,15 @@ import java.net.InetSocketAddress;
 public class PJGE {
     public static final String VERSION = "0.1-alpha";
     public static final System.Logger LOGGER = System.getLogger("PJGE");
+
+    private static String mode;
     public static void startDebugger() {
+        mode = "debugger";
+        CommandProcessor.registerDebuggerCommands();
+        runServerAndWebSocket();
+    }
+
+    private static void runServerAndWebSocket() {
         Thread pjgeMain = new Thread(() -> {
             HttpServer server;
             try {
@@ -44,5 +53,15 @@ public class PJGE {
         }, "pjge-main");
 
         pjgeMain.start();
+    }
+
+    public static void main(String[] args) {
+        mode = "creator";
+        CommandProcessor.registerCreatorCommands();
+        runServerAndWebSocket();
+    }
+
+    public static String getMode() {
+        return mode;
     }
 }

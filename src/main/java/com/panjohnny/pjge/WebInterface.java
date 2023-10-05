@@ -9,15 +9,22 @@ import java.io.*;
 
 @SuppressWarnings("unused")
 public class WebInterface {
-    @Route("/index")
+    @Route("/")
     public void index(HttpExchange ex) throws IOException {
-        String s = JHTMLParser.parseResource("/index.jhtml", null);
+        String s = JHTMLParser.parse(new File("./index.jhtml"), null);
         QuickHTTPUtil.sendString(ex, 200, s);
     }
 
-    @Route("/test/")
-    public void test(HttpExchange ex) throws IOException {
-        QuickHTTPUtil.sendString(ex, 200, "Test");
+    @Route("/editor")
+    public void editor(HttpExchange ex) throws IOException {
+        String s = JHTMLParser.parse(new File("./editor.jhtml"), null);
+        QuickHTTPUtil.sendString(ex, 200, s);
+    }
+
+    @Route("/debug")
+    public void debugger(HttpExchange ex) throws IOException {
+        String s = JHTMLParser.parse(new File("./debugger.jhtml"), null);
+        QuickHTTPUtil.sendString(ex, 200, s);
     }
 
     @Route("/app")
@@ -34,7 +41,13 @@ public class WebInterface {
             return;
         }
 
-        ex.getResponseHeaders().set("Content-Type", "text/javascript; charset=UTF-8");
+        String type = "text/plain";
+        if (path.contains(".js"))
+            type = "text/javascript";
+        else if (path.contains(".css"))
+            type = "text/css"; // not sure if this is even the correct type
+
+        ex.getResponseHeaders().set("Content-Type", type + "; charset=UTF-8");
         try (InputStream stream = JHTMLParser.class.getResourceAsStream("/lib/" + path)) {
             if (stream == null) {
                 QuickHTTPUtil.sendString(ex, 404, "Not found");

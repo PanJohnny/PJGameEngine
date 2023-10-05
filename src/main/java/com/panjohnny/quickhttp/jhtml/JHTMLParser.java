@@ -7,11 +7,13 @@ import org.jsoup.nodes.Element;
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 public final class JHTMLParser {
     private static final System.Logger LOGGER = System.getLogger("JHTMLParser");
 
@@ -79,11 +81,17 @@ public final class JHTMLParser {
 
                 // Get field
                 String prop = whole.substring(lastDot + 1);
-
-                Field field = clazz.getField(prop);
-                Object o = field.get(null);
-                finString.append(html, lastEnd, in).append(o);
+                if (prop.contains("()")) {
+                    Method method = clazz.getMethod(prop.replace("()", ""));
+                    Object o = method.invoke(null);
+                    finString.append(html, lastEnd, in).append(o);
+                } else {
+                    Field field = clazz.getField(prop);
+                    Object o = field.get(null);
+                    finString.append(html, lastEnd, in).append(o);
+                }
                 lastEnd = in + close + 1;
+
             } catch (ClassNotFoundException e) {
                 LOGGER.log(System.Logger.Level.ERROR, "Class {0} not found #{} expression: {1}, \n\tat: {2}", clazzName, whole, in);
                 finString = null;
@@ -94,6 +102,14 @@ public final class JHTMLParser {
                 break;
             } catch (SecurityException | IllegalAccessException | IllegalArgumentException e) {
                 LOGGER.log(System.Logger.Level.ERROR, "Field {3} not accessible on class {0} #{} expression: {1}, \n\tat: {2}", clazzName, whole, in, whole.substring(lastDot + 1));
+                finString = null;
+                break;
+            } catch (NoSuchMethodException e) {
+                LOGGER.log(System.Logger.Level.ERROR, "Method {3} not found on class {0} #{} expression: {1}, \n\tat: {2}", clazzName, whole, in, whole.substring(lastDot + 1));
+                finString = null;
+                break;
+            } catch (InvocationTargetException e) {
+                LOGGER.log(System.Logger.Level.ERROR, "Method {3} not accessible on class {0} #{} expression: {1}, \n\tat: {2}, make sure that the method is public static", clazzName, whole, in, whole.substring(lastDot + 1));
                 finString = null;
                 break;
             }
