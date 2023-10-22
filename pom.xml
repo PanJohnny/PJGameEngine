@@ -27,7 +27,6 @@
             <artifactId>jsoup</artifactId>
             <version>1.15.4</version>
         </dependency>
-
         <dependency>
             <groupId>org.java-websocket</groupId>
             <artifactId>Java-WebSocket</artifactId>
@@ -37,6 +36,17 @@
             <groupId>com.github.PanJohnny</groupId>
             <artifactId>PJGameLibrary</artifactId>
             <version>master-66583ca66d-1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.0.1</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+            <version>1.14.8</version>
         </dependency>
     </dependencies>
 </project>

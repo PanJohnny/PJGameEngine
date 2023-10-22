@@ -1,0 +1,23 @@
+@package com.example.objects
+@class Apple
+@type com.panjohnny.pjgl.api.object.GameObject
+
+component Position(10, 10) as pos; // default pos
+component Size(100, 100); // size
+component SpriteRenderer("spride_id"); // spriteRenderer
+
+@Override
+function update(deltaTime: long): void {
+    define keyboard: Keyboard = @PJGL.getKeyboard();
+    super.update();
+    name = "Hello";
+    if (keyboard.isKeyDown(GLFW_KEY_L)) {
+        pos.x += 1;
+    }
+}
+
+import #PJGL.api.object.components.Position;
+import #PJGL.api.object.components.Size;
+import #PJGL.api.object.components.SpriteRenderer;
+import #PJGL;
+import static #GLFW.*;

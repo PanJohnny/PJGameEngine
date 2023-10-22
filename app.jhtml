@@ -15,6 +15,15 @@
     </header>
 
     <main>
+        <div class="side" id="objects">
+            <h3>Objects</h3>
+        </div>
+        <div class="center">
+            <canvas id="canvas"></canvas>
+        </div>
+        <div class="side" id="">
+            <h3>Inspector</h3>
+        </div>
     </main>
 
     <dialog id="reconnect">
@@ -32,9 +41,32 @@
     h3 {
         margin-top: 0px;
     }
+
+    main {
+        display: flex;
+        flex-direction: row;
+    }
+
+    .side {
+        width: 25%;
+    }
+
+    .center {
+        width: auto;
+        background-color: darkgrey;
+    }
 </style>
 
 <script>
+    /*
+     ** Resizing stuff **
+    */
+   const 
+
+
+    /*
+     ** Menu stuff **
+    */
     document.querySelectorAll(".menu").forEach(m => {
         m.addEventListener("mouseover", () => {
             m.querySelector("ul").hidden = false;
@@ -58,6 +90,9 @@
         menuItems[id]();
     }
 
+    /*
+     ** WS stuff **
+    */    
     let websocket;
 
     class Command {

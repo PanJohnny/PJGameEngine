@@ -10,12 +10,13 @@
 <body>
     <header>
         <div class="top-menu">
-            <em jhtml:src="com.panjohnny.pjge.app.FileMenu" name="File" items="Save, Refresh, Exit" />
+            <em jhtml:src="com.panjohnny.pjge.app.FileMenu" name="File" items="Save, Load, Refresh, Exit" />
+            <em jhtml:src="com.panjohnny.pjge.app.FileMenu" name="Export" items="Java" />
         </div>
     </header>
 
     <main>
-        <div id="editor" contenteditable>
+        <div id="editor" contenteditable spellcheck="false">
         </div>
     </main>
 </body>
@@ -26,12 +27,14 @@
     @import url("/lib/shared.css");
 
     #editor {
+        font-family: monospace;
         background-color: #161616;
         margin: 1em;
         height: 90vh;
         outline: none;
         border: 1px solid #2B2B30;
         padding: .5em;
+        color: lightgray;
     }
 </style>
 
@@ -54,6 +57,15 @@
             location.href = "about://blank";
         },
         "save": () => {
+            localStorage.setItem("savedFile", editor.innerHTML);
+        },
+        "load": () => {
+            if (editor.innerHTML.trim().length != 0 && !confirm("Text in editor won't be saved, are you sure?"))
+                return;
+
+            editor.innerHTML = localStorage.getItem("savedFile");
+        },
+        "java": () => {
 
         }
     }
@@ -65,6 +77,7 @@
     const editor = document.querySelector("#editor");
     document.addEventListener("keydown", (e) => {
         if (e.key == "Tab") {
+            document.execCommand('insertHTML', false, "&nbsp;&nbsp;&nbsp;&nbsp;");
             e.preventDefault();
         }
     });
@@ -77,7 +90,7 @@
     });
 
     editor.addEventListener("keyup", (e) => {
-        if (e.altKey || e.metaKey || e.ctrlKey)
+        if (e.altKey || e.metaKey || e.ctrlKey || e.key == "Enter")
             return;
 
         const sel = window.getSelection();
@@ -85,28 +98,27 @@
         const offset = sel.focusOffset;
         const pos = getCursorPosition(editor, node, offset, { pos: 0, done: false });
         if (offset === 0) pos.pos += 0.5;
-        
-        console.log(pos);
 
         let text = editor.innerText;
 
         let builder = "";
-        text.split(/[\n ]/gm).forEach(w => {
-            let found = false;
+        text.split(/[\n]/gm).forEach(ln => {
+            let nl = ln;
+            // explicit search
             Object.keys(colors).forEach(c => {
-                if (colors[c].includes(w.trim())) {
-                    found = true;
-                    builder += '<span style="color: ' + c + '">' + w + '</span> '
-                }
+                const keys = colors[c];
+                keys.forEach(key => {
+                    if (nl.includes(key)) {
+                        nl = nl.replace(key, '<span style="color: ' + c + '">' + key + '</span>');
+                    }
+                })
             });
 
-            if (!found) {
-                builder += w;
-                builder += " ";
-            }
+            builder += nl;
+            builder += "\n";
         });
 
-        builder = builder.replace(/\t/gm, "&#9;").replace(/\n/gm, "<br>");
+        builder = builder.replace(/\n/gm, "<br>").replace(/\t/gm, "&nbsp;&nbsp;&nbsp;&nbsp;");
         editor.innerHTML = builder.substring(0, builder.length - 1);
 
         sel.removeAllRanges();
@@ -120,9 +132,34 @@
 
     const colors = {
         "orange": [
-            "@author",
             "@class",
-            "@package"
+            "@package",
+            "@type",
+            "as",
+            "if"
+        ],
+        "paleturquoise": [
+            "component ",
+            "define "
+        ],
+        "khaki": [
+            "import",
+            "static",
+            "void",
+            "@Override",
+            "super",
+            "this"
+        ],
+        "palegreen": [
+            "@PJGL",
+        ],
+        "bisque": [
+            "int",
+            "float",
+            "long",
+            "String",
+            "char",
+            "double"
         ]
     }
 
@@ -164,5 +201,24 @@
             }
         }
         return range;
+    }
+
+    String.prototype.indexesOf = function (str)  {
+        if (!this.includes(str))
+            return [];
+
+        const indexes = [];
+
+        console.log(this);
+
+        for (let index = 0; index < this.length; index++) {
+            const indexOf = this.substring(index).indexOf(str) + index;
+            if (indexOf != -1) {
+                indexes.push(indexOf);
+                index += str.length;
+            }
+        }
+
+        return indexes;
     }
 </script>
